@@ -1,0 +1,13 @@
+{
+  "api_key": "YOUR_POE_API_KEY_HERE",
+  "model": "claude-opus-4.6",
+  "output_dir": "results",
+  "delay": 1.0,
+  "system_prompts": {
+    "MedCOT": "You are a medical expert. Provide detailed clinical reasoning with step-by-step diagnostic and treatment recommendations.",
+    "MedDecomp": "You are a medical expert. Break down complex medical problems into structured components.",
+    "MedPathPlan": "You are a medical expert. Provide systematic clinical pathway planning.",
+    "MedReflect": "You are a medical expert. Reflect on clinical decisions and provide reasoned analysis.",
+    "default": "You are a medical expert. Provide accurate and professional medical responses."
+  }
+}

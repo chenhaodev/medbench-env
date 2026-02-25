@@ -1,0 +1,22 @@
+MedBench-2026/Backup/
+*.log
+
+# Build output
+dist/
+*.tsbuildinfo
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.bak
+*.tmp
