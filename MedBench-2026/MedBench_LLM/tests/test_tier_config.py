@@ -38,3 +38,12 @@ def test_tier2_models():
     assert "deepseek" in models
     assert "claude_anchor" in models
     assert models["deepseek"]["runs"] == 2
+
+def test_get_models_returns_independent_copy():
+    models = get_models(1)
+    models["deepseek"]["runs"] = 999
+    fresh = get_models(1)
+    assert fresh["deepseek"]["runs"] == 3  # original must be unchanged
+
+def test_tier4_models_returns_empty_dict():
+    assert get_models(4) == {}
