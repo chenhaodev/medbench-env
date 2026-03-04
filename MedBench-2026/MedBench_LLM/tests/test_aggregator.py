@@ -76,3 +76,14 @@ def test_tier2_freeform_always_uses_claude():
         format_type="freeform"
     )
     assert result == "different text"
+
+def test_tier2_json_struct_always_uses_claude():
+    result = claude_anchored_vote_tier2(
+        ds_answers=['{"value": 1}', '{"value": 1}'],
+        claude_answer='{"value": 2}',
+        format_type="json_struct"
+    )
+    assert result == '{"value": 2}'
+
+def test_majority_vote_empty_returns_empty():
+    assert majority_vote([], "mcq") == ""

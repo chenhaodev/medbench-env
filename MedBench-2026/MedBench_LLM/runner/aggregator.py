@@ -6,7 +6,8 @@ from typing import List
 
 def normalize_answer(answer: str, format_type: str) -> str:
     if format_type == "mcq":
-        return re.sub(r"[^a-zA-Z]", "", answer).lower()[:1]
+        letters = re.sub(r"[^a-zA-Z]", "", answer).lower()
+        return letters[:1] if letters else ""
     if format_type == "multi_select":
         letters = re.findall(r"[a-zA-Z]", answer)
         return ",".join(sorted(set(l.lower() for l in letters)))
@@ -15,6 +16,8 @@ def normalize_answer(answer: str, format_type: str) -> str:
 
 
 def majority_vote(answers: List[str], format_type: str) -> str:
+    if not answers:
+        return ""
     normalized = [normalize_answer(a, format_type) for a in answers]
     counts = Counter(normalized)
     return counts.most_common(1)[0][0]
