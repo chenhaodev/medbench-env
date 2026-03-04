@@ -1,6 +1,6 @@
 # tests/test_aggregator.py
 import pytest
-from runner.aggregator import normalize_answer, majority_vote, claude_anchored_vote_tier1, claude_anchored_vote_tier2
+from runner.aggregator import normalize_answer, majority_vote, claude_anchored_vote_tier1, claude_anchored_vote_tier2, is_error_answer
 
 # normalize_answer
 def test_normalize_mcq_strips_punctuation():
@@ -87,3 +87,45 @@ def test_tier2_json_struct_always_uses_claude():
 
 def test_majority_vote_empty_returns_empty():
     assert majority_vote([], "mcq") == ""
+
+
+# is_error_answer
+def test_is_error_answer_detects_error_prefix():
+    assert is_error_answer("ERROR: timeout") is True
+    assert is_error_answer("ERROR: Rate limit exceeded") is True
+    assert is_error_answer("  ERROR: something") is True
+
+def test_is_error_answer_ignores_normal_answers():
+    assert is_error_answer("A") is False
+    assert is_error_answer("B") is False
+    assert is_error_answer("some freeform text") is False
+
+
+# claude_anchored_vote_tier1: error filtering
+def test_tier1_all_ds_errors_uses_claude():
+    result = claude_anchored_vote_tier1(
+        ds_answers=["ERROR: timeout", "ERROR: timeout", "ERROR: timeout"],
+        claude_answer="A",
+        format_type="mcq"
+    )
+    # When all DS answers are errors, Claude's answer is returned as-is (stripped)
+    assert result == "A"
+
+def test_tier1_some_ds_errors_uses_claude():
+    result = claude_anchored_vote_tier1(
+        ds_answers=["B", "ERROR: timeout", "B"],
+        claude_answer="A",
+        format_type="mcq"
+    )
+    assert result == "a"  # not all DS were valid, Claude wins
+
+
+# claude_anchored_vote_tier2: error filtering
+def test_tier2_any_ds_error_uses_claude():
+    result = claude_anchored_vote_tier2(
+        ds_answers=["B", "ERROR: timeout"],
+        claude_answer="A",
+        format_type="mcq"
+    )
+    # When any DS answer is an error, Claude's answer is returned as-is (stripped)
+    assert result == "A"

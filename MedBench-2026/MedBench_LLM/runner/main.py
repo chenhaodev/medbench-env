@@ -55,6 +55,11 @@ def run_cycle(
             print(f"[SKIP] {task_name} (Tier 4, score={tier_state.get(task_name, '?')})")
             continue
 
+        output_path = results_dir / f"{task_name}_results.jsonl"
+        if output_path.exists():
+            print(f"[SKIP] {task_name} (already done)")
+            continue
+
         print(f"[Tier {tier}] {task_name} (format={format_type})")
         questions = load_questions(str(jsonl_file))
         models = get_models(tier)
@@ -88,7 +93,6 @@ def run_cycle(
                 model=models["claude"]["model_id"],
             )
 
-        output_path = results_dir / f"{task_name}_results.jsonl"
         save_results(output_path, questions, answers)
         print(f"  Saved {len(answers)} answers -> {output_path}")
 
