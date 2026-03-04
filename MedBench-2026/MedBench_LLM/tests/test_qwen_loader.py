@@ -22,10 +22,11 @@ def test_load_returns_none_for_missing_task(tmp_path):
     assert result is None
 
 
-def test_load_handles_empty_answer_field(tmp_path):
-    make_qwen_jsonl(tmp_path / "MedHC.jsonl", ["some text", ""])
+def test_load_handles_missing_answer_field(tmp_path):
+    path = tmp_path / "MedHC.jsonl"
+    path.write_text('{"question":"Q0","other":{}}\n{"question":"Q1","answer":"text","other":{}}\n', encoding="utf-8")
     result = load_qwen_answers(str(tmp_path), "MedHC")
-    assert result == ["some text", ""]
+    assert result == ["", "text"]
 
 
 def test_load_skips_blank_lines(tmp_path):
