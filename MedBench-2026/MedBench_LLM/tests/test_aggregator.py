@@ -129,3 +129,93 @@ def test_tier2_any_ds_error_uses_claude():
     )
     # When any DS answer is an error, Claude's answer is returned as-is (stripped)
     assert result == "A"
+
+
+# --- Tier 1 with Qwen ---
+
+def test_tier1_ds_and_qwen_all_agree_overrides_claude():
+    """DS×3 + Qwen all agree on B, Claude says A → DS/Qwen wins."""
+    result = claude_anchored_vote_tier1(
+        ds_answers=["B", "B", "B"],
+        claude_answer="A",
+        format_type="mcq",
+        qwen_answer="B",
+    )
+    assert result == "b"
+
+
+def test_tier1_qwen_disagrees_with_ds_claude_wins():
+    """DS×3 unanimous on B, Qwen says A → not all challengers agree → Claude wins."""
+    result = claude_anchored_vote_tier1(
+        ds_answers=["B", "B", "B"],
+        claude_answer="A",
+        format_type="mcq",
+        qwen_answer="A",  # Qwen sides with Claude
+    )
+    assert result == "a"  # Claude wins
+
+
+def test_tier1_no_qwen_behaves_as_before():
+    """Without qwen_answer, existing DS-only logic unchanged."""
+    result = claude_anchored_vote_tier1(
+        ds_answers=["B", "B", "B"],
+        claude_answer="A",
+        format_type="mcq",
+    )
+    assert result == "b"  # DS unanimous, differs from Claude → DS wins
+
+
+def test_tier1_qwen_error_excluded():
+    """Qwen ERROR treated as absent; DS unanimous still overrides Claude."""
+    result = claude_anchored_vote_tier1(
+        ds_answers=["B", "B", "B"],
+        claude_answer="A",
+        format_type="mcq",
+        qwen_answer="ERROR: timeout",
+    )
+    assert result == "b"  # DS unanimous, Qwen excluded → DS wins
+
+
+# --- Tier 2 with Qwen ---
+
+def test_tier2_ds_and_qwen_agree_overrides_claude():
+    """Both DS + Qwen agree on B, Claude says A → stricter override triggered."""
+    result = claude_anchored_vote_tier2(
+        ds_answers=["B", "B"],
+        claude_answer="A",
+        format_type="mcq",
+        qwen_answer="B",
+    )
+    assert result == "b"
+
+
+def test_tier2_ds_agree_but_qwen_sides_with_claude():
+    """Both DS agree on B, but Qwen says A (same as Claude) → Claude wins."""
+    result = claude_anchored_vote_tier2(
+        ds_answers=["B", "B"],
+        claude_answer="A",
+        format_type="mcq",
+        qwen_answer="A",
+    )
+    assert result == "a"  # Qwen vetos DS override
+
+
+def test_tier2_no_qwen_fallback_to_ds_only():
+    """No Qwen → original DS-only logic: both DS agree and differ → override."""
+    result = claude_anchored_vote_tier2(
+        ds_answers=["B", "B"],
+        claude_answer="A",
+        format_type="mcq",
+    )
+    assert result == "b"
+
+
+def test_tier2_qwen_error_falls_back_to_ds_only():
+    """Qwen error → treat as absent, fall back to DS-only override logic."""
+    result = claude_anchored_vote_tier2(
+        ds_answers=["B", "B"],
+        claude_answer="A",
+        format_type="mcq",
+        qwen_answer="ERROR: 403",
+    )
+    assert result == "b"  # Qwen excluded → DS-only override

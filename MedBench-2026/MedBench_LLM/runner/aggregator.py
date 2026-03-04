@@ -29,47 +29,63 @@ def majority_vote(answers: List[str], format_type: str) -> str:
 
 
 def claude_anchored_vote_tier1(
-    ds_answers: List[str], claude_answer: str, format_type: str
+    ds_answers: List[str],
+    claude_answer: str,
+    format_type: str,
+    qwen_answer: str = "",
 ) -> str:
-    """Tier 1: DS unanimous override only. Claude wins otherwise."""
+    """Tier 1: All challengers (DS×3 + Qwen) must be unanimous to override Claude."""
     if format_type == "freeform":
         return claude_answer.strip()
 
-    # Filter out error responses from DS answers
-    valid_ds = [a for a in ds_answers if not is_error_answer(a)]
-    if not valid_ds:
-        return claude_answer.strip()  # all DS failed, use Claude
+    # Build full challenger list; include Qwen only if valid (non-empty, non-error)
+    challengers = list(ds_answers)
+    if qwen_answer and not is_error_answer(qwen_answer):
+        challengers.append(qwen_answer)
 
-    norm_ds = [normalize_answer(a, format_type) for a in valid_ds]
+    valid = [a for a in challengers if not is_error_answer(a)]
+    if not valid:
+        return claude_answer.strip()
+
+    norm_valid = [normalize_answer(a, format_type) for a in valid]
     norm_claude = normalize_answer(claude_answer, format_type)
 
-    ds_unanimous = len(set(norm_ds)) == 1
-    ds_differs_from_claude = ds_unanimous and (norm_ds[0] != norm_claude)
+    all_valid = len(valid) == len(challengers)
+    unanimous = len(set(norm_valid)) == 1
+    differs = unanimous and (norm_valid[0] != norm_claude)
 
-    # Only override Claude if ALL original DS answers were valid and unanimous
-    all_ds_valid = len(valid_ds) == len(ds_answers)
-    if all_ds_valid and ds_differs_from_claude:
-        return norm_ds[0]
+    if all_valid and differs:
+        return norm_valid[0]
     return norm_claude
 
 
 def claude_anchored_vote_tier2(
-    ds_answers: List[str], claude_answer: str, format_type: str
+    ds_answers: List[str],
+    claude_answer: str,
+    format_type: str,
+    qwen_answer: str = "",
 ) -> str:
-    """Tier 2: both DS must agree AND differ from Claude to override."""
+    """Tier 2: DS+Qwen unanimous override only; without Qwen, DS-only override."""
     if format_type in ("freeform", "json_struct"):
         return claude_answer.strip()
 
-    # Filter out error responses - if any DS answer is an error, Claude wins
     if any(is_error_answer(a) for a in ds_answers):
         return claude_answer.strip()
 
     norm_ds = [normalize_answer(a, format_type) for a in ds_answers]
     norm_claude = normalize_answer(claude_answer, format_type)
+    both_ds_agree = len(set(norm_ds)) == 1
 
-    both_agree = len(set(norm_ds)) == 1
-    differs = both_agree and (norm_ds[0] != norm_claude)
+    qwen_valid = bool(qwen_answer) and not is_error_answer(qwen_answer)
 
-    if differs:
-        return norm_ds[0]
+    if qwen_valid:
+        norm_qwen = normalize_answer(qwen_answer, format_type)
+        # Require DS + Qwen all agree AND differ from Claude
+        if both_ds_agree and (norm_ds[0] == norm_qwen) and (norm_ds[0] != norm_claude):
+            return norm_ds[0]
+    else:
+        # No Qwen → original DS-only override
+        if both_ds_agree and (norm_ds[0] != norm_claude):
+            return norm_ds[0]
+
     return norm_claude
