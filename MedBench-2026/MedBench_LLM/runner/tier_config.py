@@ -1,4 +1,5 @@
 # runner/tier_config.py
+import copy
 from typing import Dict, Any
 
 TIER_THRESHOLDS = {1: 55, 2: 70, 3: 80}
@@ -79,4 +80,7 @@ def get_format_type(task_name: str) -> str:
 
 
 def get_models(tier: int) -> Dict[str, Any]:
-    return MODELS.get(tier, MODELS[2])
+    if tier == 4:
+        return {}
+    config = MODELS.get(tier, MODELS[2])
+    return copy.deepcopy(config)
