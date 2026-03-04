@@ -108,8 +108,8 @@ def test_tier1_all_ds_errors_uses_claude():
         claude_answer="A",
         format_type="mcq"
     )
-    # When all DS answers are errors, Claude's answer is returned as-is (stripped)
-    assert result == "A"
+    # When all DS answers are errors, Claude's answer is returned normalized
+    assert result == "a"
 
 def test_tier1_some_ds_errors_uses_claude():
     result = claude_anchored_vote_tier1(
@@ -127,8 +127,8 @@ def test_tier2_any_ds_error_uses_claude():
         claude_answer="A",
         format_type="mcq"
     )
-    # When any DS answer is an error, Claude's answer is returned as-is (stripped)
-    assert result == "A"
+    # When any DS answer is an error, Claude's answer is returned normalized
+    assert result == "a"
 
 
 # --- Tier 1 with Qwen ---

@@ -36,7 +36,7 @@ def claude_anchored_vote_tier1(
 ) -> str:
     """Tier 1: All challengers (DS×3 + Qwen) must be unanimous to override Claude."""
     if format_type == "freeform":
-        return claude_answer.strip()
+        return normalize_answer(claude_answer, format_type)
 
     # Build full challenger list; include Qwen only if valid (non-empty, non-error)
     challengers = list(ds_answers)
@@ -45,7 +45,7 @@ def claude_anchored_vote_tier1(
 
     valid = [a for a in challengers if not is_error_answer(a)]
     if not valid:
-        return claude_answer.strip()
+        return normalize_answer(claude_answer, format_type)
 
     norm_valid = [normalize_answer(a, format_type) for a in valid]
     norm_claude = normalize_answer(claude_answer, format_type)
@@ -67,10 +67,10 @@ def claude_anchored_vote_tier2(
 ) -> str:
     """Tier 2: DS+Qwen unanimous override only; without Qwen, DS-only override."""
     if format_type in ("freeform", "json_struct"):
-        return claude_answer.strip()
+        return normalize_answer(claude_answer, format_type)
 
     if any(is_error_answer(a) for a in ds_answers):
-        return claude_answer.strip()
+        return normalize_answer(claude_answer, format_type)
 
     norm_ds = [normalize_answer(a, format_type) for a in ds_answers]
     norm_claude = normalize_answer(claude_answer, format_type)
