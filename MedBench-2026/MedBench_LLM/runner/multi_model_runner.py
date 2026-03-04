@@ -8,13 +8,14 @@ from .aggregator import claude_anchored_vote_tier1, claude_anchored_vote_tier2, 
 from .clients import AnthropicClient, DeepSeekClient
 
 
-def _save_raw_votes(raw_votes_dir: Path, task_name: str, run_name: str, answers: List[str]):
+def _save_raw_votes(raw_votes_dir: Path, task_name: str, run_name: str, answers: List):
     task_dir = raw_votes_dir / task_name
     task_dir.mkdir(parents=True, exist_ok=True)
     out_file = task_dir / f"{run_name}.jsonl"
     with open(out_file, "w", encoding="utf-8") as f:
         for answer in answers:
-            f.write(json.dumps({"answer": answer}, ensure_ascii=False) + "\n")
+            if answer is not None:
+                f.write(json.dumps({"answer": answer}, ensure_ascii=False) + "\n")
 
 
 def _run_model_on_questions(
@@ -64,7 +65,7 @@ def run_tier1(
         if ds_unanimous and format_type not in ("freeform", "json_struct"):
             # DS unanimous: use DS, skip Opus
             final_answers.append(norm_ds[0])
-            opus_answers.append("")  # not called
+            opus_answers.append(None)  # not called — None signals "not invoked"
         else:
             # Need Opus as tiebreaker
             opus_answer = opus_client.query(questions[q_idx]["question"], model=opus_model)
@@ -96,9 +97,9 @@ def run_tier2(
         f_ds1 = executor.submit(_run_model_on_questions, questions, ds_client, ds_model)
         f_ds2 = executor.submit(_run_model_on_questions, questions, ds_client, ds_model)
 
-    sonnet_answers = f_sonnet.result()
-    ds1_answers = f_ds1.result()
-    ds2_answers = f_ds2.result()
+        sonnet_answers = f_sonnet.result()
+        ds1_answers = f_ds1.result()
+        ds2_answers = f_ds2.result()
 
     _save_raw_votes(raw_votes_dir, task_name, "sonnet-anchor", sonnet_answers)
     _save_raw_votes(raw_votes_dir, task_name, "deepseek-v3-run1", ds1_answers)
