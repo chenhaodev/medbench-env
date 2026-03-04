@@ -2,6 +2,8 @@
 import json
 import os
 import argparse
+import tempfile
+import shutil
 from pathlib import Path
 from typing import Dict
 
@@ -9,12 +11,6 @@ from .clients import AnthropicClient, DeepSeekClient
 from .tier_config import get_tier, get_format_type, get_models
 from .multi_model_runner import run_tier1, run_tier2
 from .single_runner import run_tier3
-
-TIER_MODELS = {
-    1: {"ds_model": "deepseek-reasoner", "claude_model": "claude-opus-4-6"},
-    2: {"ds_model": "deepseek-chat",     "claude_model": "claude-sonnet-4-6"},
-    3: {"claude_model": "claude-sonnet-4-5-20251001"},
-}
 
 
 def load_questions(filepath: str):
@@ -61,6 +57,7 @@ def run_cycle(
 
         print(f"[Tier {tier}] {task_name} (format={format_type})")
         questions = load_questions(str(jsonl_file))
+        models = get_models(tier)
 
         if tier == 1:
             answers = run_tier1(
@@ -68,9 +65,9 @@ def run_cycle(
                 task_name=task_name,
                 format_type=format_type,
                 ds_client=deepseek_client,
-                ds_model=TIER_MODELS[1]["ds_model"],
+                ds_model=models["deepseek"]["model_id"],
                 opus_client=anthropic_client,
-                opus_model=TIER_MODELS[1]["claude_model"],
+                opus_model=models["claude_tiebreak"]["model_id"],
                 raw_votes_dir=raw_votes_dir,
             )
         elif tier == 2:
@@ -79,16 +76,16 @@ def run_cycle(
                 task_name=task_name,
                 format_type=format_type,
                 ds_client=deepseek_client,
-                ds_model=TIER_MODELS[2]["ds_model"],
+                ds_model=models["deepseek"]["model_id"],
                 sonnet_client=anthropic_client,
-                sonnet_model=TIER_MODELS[2]["claude_model"],
+                sonnet_model=models["claude_anchor"]["model_id"],
                 raw_votes_dir=raw_votes_dir,
             )
         else:  # tier == 3
             answers = run_tier3(
                 questions=questions,
                 client=anthropic_client,
-                model=TIER_MODELS[3]["claude_model"],
+                model=models["claude"]["model_id"],
             )
 
         output_path = results_dir / f"{task_name}_results.jsonl"
@@ -114,26 +111,28 @@ def main():
     deepseek_client = DeepSeekClient(api_key=deepseek_key)
 
     test_dir = args.test_dir
+    tmp = None
     if args.task:
-        from pathlib import Path as P
-        all_files = list(P(args.test_dir).glob("*.jsonl"))
+        all_files = list(Path(args.test_dir).glob("*.jsonl"))
         matching = [f for f in all_files if f.stem == args.task]
         if not matching:
             print(f"Task '{args.task}' not found in {args.test_dir}")
             return
-        import tempfile
-        import shutil
         tmp = tempfile.mkdtemp()
         shutil.copy(matching[0], tmp)
         test_dir = tmp
 
-    run_cycle(
-        test_dir=test_dir,
-        cycle_dir=f"cycle{args.cycle}",
-        tier_state=tier_state,
-        anthropic_client=anthropic_client,
-        deepseek_client=deepseek_client,
-    )
+    try:
+        run_cycle(
+            test_dir=test_dir,
+            cycle_dir=f"cycle{args.cycle}",
+            tier_state=tier_state,
+            anthropic_client=anthropic_client,
+            deepseek_client=deepseek_client,
+        )
+    finally:
+        if tmp:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":
