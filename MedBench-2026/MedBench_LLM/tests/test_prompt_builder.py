@@ -48,3 +48,27 @@ def test_empty_answer_excluded_from_context():
     prompt = build_prompt("Q?", "mcq", {"Qwen": "", "DS": "A"})
     assert "Qwen" not in prompt
     assert "DS" in prompt
+
+
+def test_context_prompt_section_ordering():
+    prompt = build_prompt("My question?", "mcq", {"Qwen": "B"})
+    q_pos = prompt.index("My question?")
+    ref_pos = prompt.index("其他模型的参考回答")
+    suffix_pos = prompt.index("请只输出选项字母")
+    assert q_pos < ref_pos < suffix_pos
+
+
+def test_context_includes_synthesis_instruction():
+    prompt = build_prompt("Q?", "freeform", {"Qwen": "some answer"})
+    assert "请综合以上参考" in prompt
+
+
+def test_whitespace_only_answer_excluded():
+    prompt = build_prompt("Q?", "mcq", {"Qwen": "   ", "DS": "A"})
+    assert "Qwen" not in prompt
+    assert "DS" in prompt
+
+
+def test_unknown_format_type_falls_back_to_freeform():
+    prompt = build_prompt("Q?", "nonexistent_type", {})
+    assert "请用中文详细回答" in prompt

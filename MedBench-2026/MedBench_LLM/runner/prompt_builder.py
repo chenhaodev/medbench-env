@@ -1,14 +1,16 @@
 # runner/prompt_builder.py
 from typing import Dict
 
-from .aggregator import is_error_answer
-
 FORMAT_SUFFIXES: Dict[str, str] = {
     "mcq":          "请只输出选项字母，例如：A",
     "freeform":     "请用中文详细回答",
     "multi_select": "请输出所有正确选项，例如：A, B, C",
     "json_struct":  "请只输出JSON格式答案",
 }
+
+
+def _is_error(answer: str) -> bool:
+    return answer.strip().startswith("ERROR:")
 
 
 def build_prompt(question: str, format_type: str, other_answers: Dict[str, str]) -> str:
@@ -29,7 +31,7 @@ def build_prompt(question: str, format_type: str, other_answers: Dict[str, str])
     valid_context = {
         label: ans
         for label, ans in other_answers.items()
-        if ans and not is_error_answer(ans)
+        if ans and ans.strip() and not _is_error(ans)
     }
 
     if not valid_context:
