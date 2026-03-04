@@ -21,5 +21,5 @@ def load_qwen_answers(qwen_dir: str, task_name: str) -> Optional[List[str]]:
                     d = json.loads(line)
                 except json.JSONDecodeError as exc:
                     raise ValueError(f"Malformed JSON in {path}, line content: {line!r}") from exc
-                answers.append(str(d.get("answer") or ""))
+                answers.append(str(d.get("answer", "")))
     return answers

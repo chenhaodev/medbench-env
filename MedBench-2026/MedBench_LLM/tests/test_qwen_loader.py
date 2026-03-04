@@ -34,3 +34,10 @@ def test_load_skips_blank_lines(tmp_path):
     path.write_text('{"question":"Q0","answer":"A","other":{}}\n\n{"question":"Q1","answer":"B","other":{}}\n', encoding="utf-8")
     result = load_qwen_answers(str(tmp_path), "MedMC")
     assert result == ["A", "B"]
+
+
+def test_load_raises_on_malformed_json(tmp_path):
+    path = tmp_path / "MedMC.jsonl"
+    path.write_text('{"answer":"A"}\nnot-valid-json\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="Malformed JSON"):
+        load_qwen_answers(str(tmp_path), "MedMC")
