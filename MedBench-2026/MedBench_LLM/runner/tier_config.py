@@ -54,10 +54,10 @@ MODELS: Dict[int, Dict[str, Any]] = {
     },
     2: {
         "deepseek": {"model_id": "deepseek-chat", "runs": 2},
-        "claude_anchor": {"model_id": "claude-sonnet-4-6"},
+        "claude_anchor": {"model_id": "claude-opus-4-6"},  # Sonnet not available on this key
     },
     3: {
-        "claude": {"model_id": "claude-sonnet-4-5-20251001"},
+        "claude": {"model_id": "claude-opus-4-6"},  # Sonnet not available on this key
     },
 }
 
@@ -77,6 +77,9 @@ def get_tier(task_name: str, tier_state: Dict[str, float]) -> int:
 
 def get_format_type(task_name: str) -> str:
     return TASK_FORMATS.get(task_name, "freeform")
+
+
+QWEN_DIR = "../SUBMIT/results-qwen-wxw-20251215/MedBench_LLM"
 
 
 def get_models(tier: int) -> Dict[str, Any]:

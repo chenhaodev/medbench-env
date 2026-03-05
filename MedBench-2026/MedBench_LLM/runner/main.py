@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import Dict
 
 from .clients import AnthropicClient, DeepSeekClient
-from .tier_config import get_tier, get_format_type, get_models
+from .tier_config import get_tier, get_format_type, get_models, QWEN_DIR
 from .multi_model_runner import run_tier1, run_tier2
 from .single_runner import run_tier3
+from .qwen_loader import load_qwen_answers
 
 
 def load_questions(filepath: str):
@@ -40,6 +41,7 @@ def run_cycle(
     tier_state: Dict[str, float],
     anthropic_client: AnthropicClient,
     deepseek_client: DeepSeekClient,
+    qwen_dir: str = QWEN_DIR,
 ):
     test_path = Path(test_dir)
     cycle_path = Path(cycle_dir)
@@ -51,17 +53,24 @@ def run_cycle(
         tier = get_tier(task_name, tier_state)
         format_type = get_format_type(task_name)
 
-        if tier == 4:
-            print(f"[SKIP] {task_name} (Tier 4, score={tier_state.get(task_name, '?')})")
-            continue
-
         output_path = results_dir / f"{task_name}_results.jsonl"
         if output_path.exists():
             print(f"[SKIP] {task_name} (already done)")
             continue
 
+        if tier == 4:
+            qwen_answers = load_qwen_answers(qwen_dir, task_name)
+            if qwen_answers is None:
+                print(f"[SKIP] {task_name} (Tier 4, no Qwen file)")
+                continue
+            questions = load_questions(str(jsonl_file))
+            save_results(output_path, questions, qwen_answers)
+            print(f"[Tier 4] {task_name} (copied {len(qwen_answers)} Qwen answers)")
+            continue
+
         print(f"[Tier {tier}] {task_name} (format={format_type})")
         questions = load_questions(str(jsonl_file))
+        qwen_answers = load_qwen_answers(qwen_dir, task_name)
         models = get_models(tier)
 
         if tier == 1:
@@ -74,6 +83,7 @@ def run_cycle(
                 opus_client=anthropic_client,
                 opus_model=models["claude_tiebreak"]["model_id"],
                 raw_votes_dir=raw_votes_dir,
+                qwen_answers=qwen_answers,
             )
         elif tier == 2:
             answers = run_tier2(
@@ -85,12 +95,15 @@ def run_cycle(
                 sonnet_client=anthropic_client,
                 sonnet_model=models["claude_anchor"]["model_id"],
                 raw_votes_dir=raw_votes_dir,
+                qwen_answers=qwen_answers,
             )
         else:  # tier == 3
             answers = run_tier3(
                 questions=questions,
                 client=anthropic_client,
                 model=models["claude"]["model_id"],
+                qwen_answers=qwen_answers,
+                format_type=format_type,
             )
 
         save_results(output_path, questions, answers)
@@ -103,6 +116,7 @@ def main():
     parser.add_argument("--cycle", type=int, default=1)
     parser.add_argument("--tier-state", default="tier_state.json")
     parser.add_argument("--task", type=str, help="Run a single task only")
+    parser.add_argument("--qwen-dir", default=QWEN_DIR, help="Path to Qwen cycle0 results dir")
     args = parser.parse_args()
 
     anthropic_key = os.environ["ANTHROPIC_API_KEY"]
@@ -133,6 +147,7 @@ def main():
             tier_state=tier_state,
             anthropic_client=anthropic_client,
             deepseek_client=deepseek_client,
+            qwen_dir=args.qwen_dir,
         )
     finally:
         if tmp:
