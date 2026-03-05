@@ -132,6 +132,9 @@ def test_tier1_qwen_breaks_unanimity_calls_claude(tmp_path):
     )
     # Claude is called (not unanimous); Claude's answer wins (context-informed synthesizer)
     opus_client.query.assert_called()
+    # Opus receives context-injected prompt containing Qwen's answer
+    call_args = opus_client.query.call_args_list
+    assert any("Qwen" in str(args) for args in call_args)
 
 
 def test_tier2_claude_prompt_includes_qwen_context(tmp_path):

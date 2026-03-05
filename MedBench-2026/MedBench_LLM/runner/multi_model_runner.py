@@ -102,8 +102,9 @@ def run_tier1(
             "DeepSeek-R1（第1次）": ds_runs[0][q_idx],
             "DeepSeek-R1（第2次）": ds_runs[1][q_idx],
             "DeepSeek-R1（第3次）": ds_runs[2][q_idx],
-            "Qwen": qwen_ans,
         }
+        if qwen_ans and not is_error_answer(qwen_ans):
+            other["Qwen"] = qwen_ans
         prompt = build_prompt(questions[q_idx]["question"], format_type, other)
         opus_answer = opus_client.query(prompt, model=opus_model)
         opus_answers.append(opus_answer)
