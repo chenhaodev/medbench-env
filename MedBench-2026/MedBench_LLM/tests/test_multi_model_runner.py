@@ -92,3 +92,64 @@ def test_raw_votes_saved(tmp_path):
     assert vote_dir.exists()
     vote_files = list(vote_dir.glob("*.jsonl"))
     assert len(vote_files) >= 3  # at least 3 DS runs saved
+
+
+def test_tier1_all_unanimous_skips_claude(tmp_path):
+    """DS×3 + Qwen all return 'B' → Claude never called (skip optimization)."""
+    ds_client = make_mock_client("B")
+    opus_client = make_mock_client("A")
+
+    answers = run_tier1(
+        questions=SAMPLE_QUESTIONS,
+        task_name="MedLitQA",
+        format_type="mcq",
+        ds_client=ds_client,
+        ds_model="deepseek-reasoner",
+        opus_client=opus_client,
+        opus_model="claude-opus-4-6",
+        raw_votes_dir=tmp_path,
+        qwen_answers=["B", "B"],  # Qwen also says B
+    )
+    assert all(a == "b" for a in answers)
+    opus_client.query.assert_not_called()
+
+
+def test_tier1_qwen_breaks_unanimity_calls_claude(tmp_path):
+    """DS×3 say 'B', Qwen says 'A' → not unanimous → Claude called."""
+    ds_client = make_mock_client("B")
+    opus_client = make_mock_client("C")
+
+    answers = run_tier1(
+        questions=SAMPLE_QUESTIONS,
+        task_name="MedLitQA",
+        format_type="mcq",
+        ds_client=ds_client,
+        ds_model="deepseek-reasoner",
+        opus_client=opus_client,
+        opus_model="claude-opus-4-6",
+        raw_votes_dir=tmp_path,
+        qwen_answers=["A", "A"],  # Qwen disagrees
+    )
+    # Claude is called (not unanimous); Claude's answer wins (context-informed synthesizer)
+    opus_client.query.assert_called()
+
+
+def test_tier2_claude_prompt_includes_qwen_context(tmp_path):
+    """When qwen_answers provided, Claude receives context-injected prompt."""
+    ds_client = make_mock_client("B")
+    sonnet_client = make_mock_client("A")
+
+    run_tier2(
+        questions=SAMPLE_QUESTIONS,
+        task_name="MedMC",
+        format_type="mcq",
+        ds_client=ds_client,
+        ds_model="deepseek-chat",
+        sonnet_client=sonnet_client,
+        sonnet_model="claude-opus-4-6",
+        raw_votes_dir=tmp_path,
+        qwen_answers=["C", "C"],
+    )
+    # Claude should have been called with a prompt containing "Qwen"
+    call_args = sonnet_client.query.call_args_list
+    assert any("Qwen" in str(args) for args in call_args)
