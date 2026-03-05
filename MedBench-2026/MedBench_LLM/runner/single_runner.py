@@ -1,17 +1,23 @@
 # runner/single_runner.py
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
-from .clients import AnthropicClient
+from .prompt_builder import build_prompt
 
 
 def run_tier3(
     questions: List[Dict[str, Any]],
-    client: AnthropicClient,
+    client,
     model: str,
+    qwen_answers: Optional[List[str]] = None,
+    format_type: str = "freeform",
 ) -> List[str]:
-    """Single-pass Claude Sonnet 4.5 for Tier 3 tasks."""
+    """Single-pass Claude for Tier 3 tasks, with optional Qwen context injection."""
     answers = []
-    for item in questions:
-        answer = client.query(item["question"], model=model)
-        answers.append(answer)
+    for q_idx, item in enumerate(questions):
+        qwen_ans = (
+            qwen_answers[q_idx] if qwen_answers and q_idx < len(qwen_answers) else ""
+        ) or ""
+        other = {"Qwen": qwen_ans} if qwen_ans else {}
+        prompt = build_prompt(item["question"], format_type, other)
+        answers.append(client.query(prompt, model=model))
     return answers
